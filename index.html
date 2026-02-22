@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gateway Verifiability Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <h1>Pi Gateway</h1>
+          <p>IoT Verifiability Console</p>
+        </div>
+
+        <nav class="nav-groups">
+          <section>
+            <h2>Verification (Read-only)</h2>
+            <button class="nav-item active" data-tab="overview">Dashboard Overview</button>
+            <button class="nav-item" data-tab="log-viewer">Verification Log Viewer</button>
+            <button class="nav-item" data-tab="merkle-status">Merkle & Anchoring Status</button>
+            <button class="nav-item" data-tab="merkle-workspace">Merkle Verification Workspace</button>
+          </section>
+
+          <section>
+            <h2>Operator Tools</h2>
+            <button class="nav-item operator" data-tab="node-registry">Node Enrollment & Registry</button>
+            <button class="nav-item operator" data-tab="session-reset">Session Reset Control</button>
+            <button class="nav-item operator" data-tab="export-center">Export & Artifacts Center</button>
+          </section>
+        </nav>
+      </aside>
+
+      <main class="main-area">
+        <header class="topbar card">
+          <div class="status-row">
+            <span class="status-chip online">Gateway Online</span>
+            <span class="status-chip online">Broker Online</span>
+            <span class="status-chip healthy">Storage OK</span>
+            <span class="status-chip queue">Anchoring Queue Size: <strong>7</strong></span>
+          </div>
+          <div class="controls-row">
+            <div class="search-wrap">
+              <label for="global-search">Global Search (node_id / session_id)</label>
+              <input id="global-search" type="text" placeholder="Search by node_id or session_id..." />
+            </div>
+            <div class="time-filter" id="global-time-filter">
+              <label>Time Range</label>
+              <div class="chips">
+                <button class="chip active" data-range="1h">Last 1h</button>
+                <button class="chip" data-range="24h">Last 24h</button>
+                <button class="chip" data-range="7d">Last 7d</button>
+                <button class="chip" data-range="custom">Custom</button>
+              </div>
+              <div class="custom-range hidden">
+                <input type="date" id="from-date" />
+                <input type="date" id="to-date" />
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <section class="tab-panel active" id="overview">
+          <div class="panel-header">
+            <h2>Dashboard Overview</h2>
+            <p>Runtime observability view. No state-changing actions are available.</p>
+          </div>
+
+          <div class="summary-grid">
+            <article class="card metric"><h3>Total Enrolled Nodes</h3><p>24</p></article>
+            <article class="card metric"><h3>Active Sessions</h3><p>18</p></article>
+            <article class="card metric"><h3>Interrupted Sessions</h3><p>6</p></article>
+            <article class="card metric"><h3>Admitted Count (range)</h3><p>12,845</p></article>
+            <article class="card metric"><h3>Rejected Count (range)</h3><p>203</p></article>
+            <article class="card metric"><h3>Latest Anchor Status</h3><p><span class="badge confirmed">CONFIRMED</span> Batch B-3142</p></article>
+          </div>
+
+          <div class="card">
+            <div class="table-controls">
+              <div class="filter-row">
+                <button class="chip quick-filter active" data-filter="all">All</button>
+                <button class="chip quick-filter" data-filter="ACTIVE">Only ACTIVE</button>
+                <button class="chip quick-filter" data-filter="INTERRUPTED">Only INTERRUPTED</button>
+              </div>
+              <input id="node-filter" type="text" placeholder="Quick node_id filter..." />
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>node_id</th><th>status</th><th>session_status</th><th>last_seq</th><th>last_seen</th>
+                  <th>expected_interval_ms</th><th>admitted_count</th><th>rejected_count</th><th>disconnect_ts</th>
+                </tr>
+              </thead>
+              <tbody id="overview-table-body"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="tab-panel" id="log-viewer">
+          <div class="panel-header">
+            <h2>Verification Log Viewer</h2>
+            <p>Hash-linked transparency log with tamper-evident chaining.</p>
+          </div>
+          <div class="card table-card">
+            <div class="table-controls">
+              <div class="filter-row">
+                <input id="log-node-filter" placeholder="Filter node_id" />
+                <input id="log-session-filter" placeholder="Filter session_id" />
+                <select id="log-admission-filter"><option value="all">Admission: All</option><option>ACCEPT</option><option>REJECT</option></select>
+              </div>
+              <div class="filter-row">
+                <button class="btn secondary" id="export-log-csv">Export view as CSV</button>
+                <span class="muted">Read-only export of currently displayed rows.</span>
+              </div>
+            </div>
+            <table>
+              <thead><tr>
+                <th>record_id</th><th>node_id</th><th>session_id</th><th>timestamp_device</th><th>timestamp_gateway_arrival</th><th>seq_num</th><th>sensor_value</th><th>admission</th><th>rejection_reason</th><th>enforcement_layer_failed</th><th>anomaly_flags</th><th>prev_hash</th><th>curr_hash</th><th>actions</th>
+              </tr></thead>
+              <tbody id="log-table-body"></tbody>
+            </table>
+            <div class="pagination"><button class="btn small" id="prev-page">Prev</button><span id="page-info">Page 1</span><button class="btn small" id="next-page">Next</button></div>
+          </div>
+          <div class="card" id="log-detail-drawer">
+            <h3>Row Details</h3>
+            <p class="muted">Select “View JSON” on a row to inspect full payload + enforcement metadata.</p>
+            <pre id="log-json">{ }</pre>
+          </div>
+        </section>
+
+        <section class="tab-panel" id="merkle-status">
+          <div class="panel-header">
+            <h2>Merkle & Anchoring Status</h2>
+            <p>Anchoring is preservation-only; does not affect admission decisions.</p>
+          </div>
+          <div class="card">
+            <table>
+              <thead><tr><th>batch_id</th><th>interval_start</th><th>interval_end</th><th>merkle_root</th><th>leaf_count</th><th>anchor_status</th><th>solana_tx_id</th><th>anchored_at</th><th>retries</th><th>actions</th></tr></thead>
+              <tbody id="batch-table-body"></tbody>
+            </table>
+          </div>
+          <div class="split-grid">
+            <div class="card" id="batch-detail">
+              <h3>Batch Detail</h3>
+              <p>Select a batch to view merkle root, leaves, and proof bundle.</p>
+              <pre id="batch-json">{ }</pre>
+              <button class="btn secondary">Download inclusion proofs bundle</button>
+            </div>
+            <div class="card">
+              <h3>Batch Timeline</h3>
+              <ul class="timeline" id="batch-timeline"></ul>
+            </div>
+          </div>
+        </section>
+
+        <section class="tab-panel operator-panel" id="node-registry">
+          <div class="panel-header">
+            <h2>Node Enrollment & Registry</h2>
+            <p>Enrollment is administrative, not cryptographic authentication.</p>
+          </div>
+          <div class="split-grid">
+            <form class="card form-grid" id="enroll-form">
+              <h3>Enrollment Form</h3>
+              <label>node_id (required)<input required name="node_id" /></label>
+              <label>expected_interval_ms (required)<input required type="number" name="expected_interval_ms" /></label>
+              <label>sensor_type (optional)<input name="sensor_type" /></label>
+              <label>min_value (optional)<input type="number" name="min_value" /></label>
+              <label>max_value (optional)<input type="number" name="max_value" /></label>
+              <label>rate_of_change_limit (optional)<input type="number" name="roc" /></label>
+              <button class="btn" type="submit">Enroll Node</button>
+            </form>
+            <div class="card">
+              <h3>Registry Table</h3>
+              <table>
+                <thead><tr><th>node_id</th><th>registered_at</th><th>expected_interval_ms</th><th>status</th><th>last_seen</th><th>notes</th><th>actions</th></tr></thead>
+                <tbody id="registry-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="tab-panel operator-panel" id="session-reset">
+          <div class="panel-header"><h2>Session Reset Control</h2><p>Controlled recovery workflow.</p></div>
+          <div class="split-grid">
+            <div class="card">
+              <h3>Per-node Session Panel</h3>
+              <table>
+                <thead><tr><th>node_id</th><th>current session_id</th><th>last_seq</th><th>last_seen</th><th>session_status</th></tr></thead>
+                <tbody id="session-panel-body"></tbody>
+              </table>
+            </div>
+            <form class="card form-grid" id="reset-form">
+              <h3>Trigger SESSION_RESET</h3>
+              <label>node_id<select name="node_id" id="reset-node"></select></label>
+              <label>reason text<textarea name="reason" required placeholder="Maintenance window, field intervention, etc."></textarea></label>
+              <button class="btn" type="submit">Trigger SESSION_RESET</button>
+              <p class="muted">Next packet will establish new expected_seq baseline.</p>
+            </form>
+          </div>
+          <div class="card">
+            <h3>Recent Resets</h3>
+            <table>
+              <thead><tr><th>timestamp</th><th>node_id</th><th>reason</th><th>operator_id</th><th>receipt_id</th></tr></thead>
+              <tbody id="recent-resets"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="tab-panel operator-panel" id="export-center">
+          <div class="panel-header"><h2>Export & Verification Artifacts Center</h2></div>
+          <div class="split-grid">
+            <form class="card form-grid" id="export-form">
+              <h3>Export Wizard</h3>
+              <label>Step a) node_id(s) (required)<input required name="node_ids" placeholder="node-001,node-007" /></label>
+              <label>Date range<input type="text" name="range" placeholder="2026-01-01 to 2026-01-31" /></label>
+              <label>Step b) data type<select name="data_type"><option>admitted-only</option><option>include rejected metadata</option></select></label>
+              <label>Step c) format<select name="format"><option>CSV</option><option>JSON</option></select></label>
+              <fieldset>
+                <legend>Step d) Include extras</legend>
+                <label><input type="checkbox" name="meta" /> include enforcement metadata</label>
+                <label><input type="checkbox" name="anomaly" /> include anomaly flags</label>
+                <label><input type="checkbox" name="events" /> include session events</label>
+              </fieldset>
+              <button class="btn" type="submit">Step e) Generate export</button>
+            </form>
+            <div class="card">
+              <h3>Downloads</h3>
+              <table>
+                <thead><tr><th>artifact</th><th>filename</th><th>generated_at</th><th>size</th><th>checksum (sha256)</th><th>download</th></tr></thead>
+                <tbody id="downloads-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="tab-panel" id="merkle-workspace">
+          <div class="panel-header">
+            <h2>Merkle Verification Workspace</h2>
+            <p>Verification validates integrity of admitted records and anchoring references; does not prove sensor hardware authenticity.</p>
+          </div>
+          <div class="split-grid">
+            <form class="card form-grid" id="verify-form">
+              <h3>Simple Verification Form</h3>
+              <label>batch_id or solana_tx_id<input name="batch_or_tx" required /></label>
+              <label>Upload log/export file<input type="file" name="log_file" /></label>
+              <label>Upload proofs bundle<input type="file" name="proof_file" /></label>
+              <button class="btn" type="submit">Run Verification</button>
+            </form>
+            <div class="card" id="verify-output">
+              <h3>Verification Output</h3>
+              <p>computed merkle_root: <code id="computed-root">-</code></p>
+              <p>recorded merkle_root: <code id="recorded-root">-</code></p>
+              <p>result: <span id="verify-result" class="badge queued">PENDING</span></p>
+              <h4>CLI Example</h4>
+              <pre>python verify_merkle.py --batch B-3142 --log export.csv --proofs proofs.zip</pre>
+            </div>
+          </div>
+        </section>
+
+        <section id="receipt-area" class="card hidden"></section>
+      </main>
+    </div>
+
+    <div id="confirm-modal" class="modal hidden">
+      <div class="modal-content card">
+        <h3>Confirm Operator Action</h3>
+        <p id="confirm-text"></p>
+        <div class="modal-actions">
+          <button class="btn secondary" id="cancel-confirm">Cancel</button>
+          <button class="btn" id="accept-confirm">Confirm</button>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      Trust Model Notice: UI does not modify admitted records; enforcement occurs at gateway before persistence; blockchain anchoring is preservation-only.
+    </footer>
+
+    <script src="app.js"></script>
+  </body>
+</html>
